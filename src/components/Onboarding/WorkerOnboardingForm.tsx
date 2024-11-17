@@ -6,6 +6,7 @@ import { statelist } from "@/helpers/statelist";
 import { useEffect } from "react";
 import useApi from "@/hooks/useApi";
 import { useToast } from "@/hooks/use-toast";
+import { useSearchParams,useRouter } from "next/navigation";
 import {
   Form,
   FormControl,
@@ -55,12 +56,26 @@ type FormData = {
 };
 
 export default function RegistrationForm() {
+  const params = useSearchParams();
+  const router = useRouter();
   const { toast } = useToast();
   const {
     data: workerData,
     error: workerError,
     loading: workerLoading,
     post: postWorker,
+  } = useApi();
+  const {
+    data: workerInfo,
+    error: workerInfoError,
+    loading: workerInfoLoading,
+    get: getWorkerInfo,
+  } = useApi();
+  const {
+    data: workerUpdateData,
+    error: workerUpdateError,
+    loading: workerUpdateLoading,
+    post: postWorkerUpdate,
   } = useApi();
   const fourDigitRandomNumber = () => Math.floor(1000 + Math.random() * 9000);
   const form = useForm<FormData>({
@@ -92,7 +107,12 @@ export default function RegistrationForm() {
       ...data,
       pin: fourDigitRandomNumber(),
     };
-    postWorker(`${config.USER_API_URL}/register`, obj);
+    const editId = params.get("edit");
+    if (editId) {
+      postWorkerUpdate(`${config.USER_API_URL}/${editId}/update`, obj);
+    } else {
+      postWorker(`${config.USER_API_URL}/register`, obj);
+    }
   };
 
   useEffect(() => {
@@ -106,11 +126,54 @@ export default function RegistrationForm() {
     if (workerError) {
       console.log(workerError);
     }
-    if (workerLoading) {
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workerData, workerError]);
+
+  useEffect(() => {
+    if (workerUpdateData) {
+      console.log(workerUpdateData.data);
+      console.log("Update Successful");
+      toast({
+        title: "Update Successful",
+        description: "Worker information has been successfully updated",
+      });
+      router.push("/dashboard");
+    }
+    if (workerUpdateError) {
+      console.log(workerUpdateError);
+    }
+    if (workerUpdateLoading) {
       console.log("loading");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workerData, workerError, workerLoading]);
+  }, [workerUpdateData, workerUpdateError, workerUpdateLoading]);
+
+  useEffect(() => {
+    if (params.get("edit")) {
+      getWorkerInfo(`${config.USER_API_URL}/${params.get("edit")}`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params]);
+
+  useEffect(() => {
+    if (workerInfo) {
+      const normalizedData = {
+        ...workerInfo.data,
+        bankDetails: Array.isArray(workerInfo.data.bankDetails)
+          ? workerInfo.data.bankDetails[0]
+          : workerInfo.data.bankDetails,
+      };
+
+      form.reset(normalizedData);
+    }
+    if (workerInfoError) {
+      console.error(workerInfoError);
+    }
+    if (workerInfoLoading) {
+      console.log("loading");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workerInfo, workerInfoError, workerInfoLoading]);
 
   return (
     <Form {...form}>
@@ -179,7 +242,7 @@ export default function RegistrationForm() {
                     </FormLabel>
                     <Select
                       onValueChange={field.onChange}
-                      defaultValue={field.value}
+                      value={field.value}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -250,7 +313,7 @@ export default function RegistrationForm() {
                     </FormLabel>
                     <Select
                       onValueChange={field.onChange}
-                      defaultValue={field.value}
+                      value={field.value}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -437,7 +500,7 @@ export default function RegistrationForm() {
         </Card>
         <CardFooter className="p-0 pb-5 flex justify-end">
           <Button type="submit" className="w-[300px]">
-            Submit Registration
+            {params.get("edit") ? "Update Worker" : "Submit Registration"}
           </Button>
         </CardFooter>
       </form>

@@ -1,7 +1,8 @@
-"use client";
-import React, { useState, useEffect } from "react";
-import useApi from "@/hooks/useApi";
-import config from "@/helpers/config";
+"use client"
+
+import React, { useState, useEffect } from "react"
+import useApi from "@/hooks/useApi"
+import config from "@/helpers/config"
 import {
   Table,
   TableBody,
@@ -11,70 +12,107 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Button } from "../ui/button";
-import Link from "next/link";
-import { Trash2, Pencil,CirclePlus } from "lucide-react";
+} from "@/components/ui/table"
+import { Button } from "@/components/ui/button"
+import Link from "next/link"
+import { Trash2, Pencil, CirclePlus } from "lucide-react"
+import { useRouter } from "next/navigation"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 function WorkerTable() {
+  const router = useRouter()
   interface BankDetail {
-    bankName: string;
-    accountNumber: string;
-    ifscCode: string;
-    accountHolderName: string;
-    cancelChequeUrl: string;
-    panCard: string;
+    bankName: string
+    accountNumber: string
+    ifscCode: string
+    accountHolderName: string
+    cancelChequeUrl: string
+    panCard: string
   }
 
   interface Worker {
-    _id: string;
-    fullName: string;
-    phone: string;
-    role: string;
-    address: string;
-    city: string;
-    state: string;
-    pincode: string;
-    status: string;
-    perSqFtPrice?: number;
-    totalSqFt?: number;
-    bankDetails: BankDetail[];
+    _id: string
+    fullName: string
+    phone: string
+    role: string
+    address: string
+    city: string
+    state: string
+    pincode: string
+    status: string
+    perSqFtPrice?: number
+    totalSqFt?: number
+    bankDetails: BankDetail[]
   }
 
-  const [workersData, setWorkersData] = useState<Worker[]>([]);
+  const [workersData, setWorkersData] = useState<Worker[]>([])
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [workerToDelete, setWorkerToDelete] = useState<string | null>(null)
+
   const {
     data: workers,
     error: workersError,
     loading: workersLoading,
     get: getWorkers,
-  } = useApi();
+  } = useApi()
+
+  const {
+    data : deleteWorkerData,
+    error: deleteWorkerError,
+    loading: deleteWorkerLoading,
+    post: deleteWorker,
+  } = useApi()
 
   useEffect(() => {
-    getWorkers(`${config.USER_API_URL}`);
+    getWorkers(`${config.USER_API_URL}`)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [])
 
   useEffect(() => {
     if (workersError) {
-      console.error("Error fetching workers", workersError);
+      console.error("Error fetching workers", workersError)
     }
     if (workers && workers.data) {
-      setWorkersData(workers.data);
+      setWorkersData(workers.data)
     }
     if (workersLoading) {
-      console.log("Loading workers");
+      console.log("Loading workers")
     }
-  }, [workers, workersError, workersLoading]);
+  }, [workers, workersError, workersLoading])
 
   const handleEdit = (id: string) => {
-    // Handle edit logic here
-    console.log(`Edit worker with id: ${id}`);
-  };
+    router.push(`/dashboard/onboarding?edit=${id}`)
+  }
 
-  const handleDelete = (id: string) => {
-    // Handle delete logic here
-    console.log(`Delete worker with id: ${id}`);
-  };
+  const handleDeleteClick = (id: string) => {
+    setWorkerToDelete(id)
+    setIsDeleteModalOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (workerToDelete) {
+      const obj = {
+        id : workerToDelete
+      }
+      try {
+        deleteWorker(`${config.USER_API_URL}/${workerToDelete}/delete`, obj)
+        setWorkersData((prevWorkers) =>
+          prevWorkers.filter((worker) => worker._id !== workerToDelete)
+        )
+        setIsDeleteModalOpen(false)
+        setWorkerToDelete(null)
+      } catch (error) {
+        console.error("Error deleting worker", error)
+      }
+    }
+  }
 
   return (
     <div>
@@ -84,7 +122,10 @@ function WorkerTable() {
           <p className="text-sm text-gray-500">Add, edit, or delete.</p>
         </div>
         <Link href="/dashboard/onboarding">
-          <Button className="mb-4">Add Worker<CirclePlus /> </Button>
+          <Button className="mb-4">
+            Add Worker
+            <CirclePlus className="ml-2 h-4 w-4" />
+          </Button>
         </Link>
       </div>
       <Table>
@@ -113,17 +154,13 @@ function WorkerTable() {
               <TableCell>
                 {worker.perSqFtPrice ? `₹${worker.perSqFtPrice}` : "N/A"}
               </TableCell>
-              <TableCell>
-                {worker.totalSqFt ? worker.totalSqFt : "N/A"}
-              </TableCell>
+              <TableCell>{worker.totalSqFt ? worker.totalSqFt : "N/A"}</TableCell>
               {worker.bankDetails.length > 0 ? (
                 <>
                   <TableCell>{worker.bankDetails[0].bankName}</TableCell>
                   <TableCell>{worker.bankDetails[0].accountNumber}</TableCell>
                   <TableCell>{worker.bankDetails[0].ifscCode}</TableCell>
-                  <TableCell>
-                    {worker.bankDetails[0].accountHolderName}
-                  </TableCell>
+                  <TableCell>{worker.bankDetails[0].accountHolderName}</TableCell>
                   <TableCell>{worker.bankDetails[0].panCard}</TableCell>
                 </>
               ) : (
@@ -143,7 +180,7 @@ function WorkerTable() {
                 />
                 <Trash2
                   className="cursor-pointer text-red-500 ml-2 hover:text-red-700"
-                  onClick={() => handleDelete(worker._id)}
+                  onClick={() => handleDeleteClick(worker._id)}
                   height={15}
                 />
               </TableCell>
@@ -157,8 +194,27 @@ function WorkerTable() {
           </TableRow>
         </TableFooter>
       </Table>
+
+      <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Deletion</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this worker? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteConfirm}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
-  );
+  )
 }
 
-export default WorkerTable;
+export default WorkerTable
